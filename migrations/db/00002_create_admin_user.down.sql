@@ -1,0 +1,1 @@
+DELETE FROM users WHERE email = 'admin@visit-platform.com' AND role = 1;
