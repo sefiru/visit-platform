@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import axios from 'axios';
+import type { User, CardStatistic } from '../types';
+
+interface CardStatisticWithUser extends CardStatistic {
+  user?: User;
+}
 
 const AdminStatistics = () => {
-  const [statistics, setStatistics] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [statistics, setStatistics] = useState<CardStatisticWithUser[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     const fetchStatistics = async () => {
@@ -21,9 +26,10 @@ const AdminStatistics = () => {
 
         setStatistics(response.data.all_stats);
         setError('');
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching statistics:', err);
-        setError(err.response?.data?.error || err.message || 'Failed to load statistics');
+        const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to load statistics');
       } finally {
         setLoading(false);
       }
@@ -54,7 +60,6 @@ const AdminStatistics = () => {
     );
   }
 
-  // Calculate totals
   const totalViews = statistics.reduce((sum, card) => sum + card.view_count, 0);
   const totalBotInteractions = statistics.reduce((sum, card) => sum + card.bot_view_count, 0);
   const totalCards = statistics.length;
@@ -63,7 +68,7 @@ const AdminStatistics = () => {
     <AdminLayout>
       <div className="admin-statistics">
         <h1>Statistics</h1>
-        
+
         <div className="stats-summary">
           <div className="summary-card">
             <h3>Total Visit Cards</h3>
@@ -112,7 +117,7 @@ const AdminStatistics = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No statistics available.</td>
+                  <td colSpan={6}>No statistics available.</td>
                 </tr>
               )}
             </tbody>

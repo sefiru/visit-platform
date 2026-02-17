@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Header from './Header';
 import axios from 'axios';
 
 const Register = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [name, setName] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await axios.post('/api/register', {
         email,
@@ -24,15 +24,12 @@ const Register = () => {
         name,
         companyName
       });
-      
-      // Store the token in localStorage
+
       localStorage.setItem('token', response.data.token);
-      
-      // Redirect to dashboard
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Registration error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Registration failed';
+      const errorMessage = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error || (err as { message?: string })?.message || 'Registration failed';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -62,7 +59,7 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength="6"
+              minLength={6}
               disabled={loading}
             />
           </div>

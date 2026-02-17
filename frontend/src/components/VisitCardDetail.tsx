@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import Header from './Header';
 import axios from 'axios';
+import MarkdownPreview from './MarkdownPreview';
+import type { VisitCard } from '../types';
 
 const VisitCardDetail = () => {
-  const { id, domain } = useParams(); // Either id or domain will be present depending on the route
+  const { id, domain } = useParams<{ id?: string; domain?: string }>();
   const location = useLocation();
-  const [visitCard, setVisitCard] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const hasFetched = React.useRef(false);
+  const [visitCard, setVisitCard] = useState<VisitCard | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    // Prevent double execution in React strict mode
     if (hasFetched.current) return;
     hasFetched.current = true;
 
@@ -21,28 +22,24 @@ const VisitCardDetail = () => {
         const token = localStorage.getItem('token');
         let response;
 
-        // Determine which parameter to use based on the route
         if (location.pathname.startsWith('/v/')) {
-          // Domain-based route - always public
           response = await axios.get(`/api/v/${domain}`);
         } else {
-          // ID-based route - use protected endpoint if user is logged in
           if (token) {
-            // User is logged in, use the protected endpoint to get detailed info
             response = await axios.get(`/api/visit-cards/${id}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
           } else {
-            // User is not logged in, use the public endpoint
             response = await axios.get(`/api/visit-cards/${id}/public`);
           }
         }
 
         setVisitCard(response.data.visit_card);
         setError('');
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching visit card:', err);
-        setError(err.response?.data?.error || err.message || 'Failed to load company information');
+        const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to load company information');
       } finally {
         setLoading(false);
       }
@@ -72,7 +69,7 @@ const VisitCardDetail = () => {
   return (
     <div className="visit-card-page">
       <Header />
-      
+
       <main className="company-detail">
         <div className="container">
           <header className="company-header">
@@ -85,11 +82,8 @@ const VisitCardDetail = () => {
           </header>
 
           <section className="company-info">
-            <p>{visitCard?.description}</p>
+            <MarkdownPreview content={visitCard?.description || ''} />
           </section>
-
-          
-
         </div>
       </main>
     </div>

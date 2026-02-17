@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import axios from 'axios';
 
+interface FormData {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 const ChangePassword = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -22,12 +28,11 @@ const ChangePassword = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    // Validate form
     if (formData.newPassword !== formData.confirmPassword) {
       setError('New passwords do not match');
       return;
@@ -46,7 +51,7 @@ const ChangePassword = () => {
         throw new Error('Authentication token not found');
       }
 
-      const response = await axios.put('/api/profile/password', {
+      await axios.put('/api/profile/password', {
         old_password: formData.oldPassword,
         new_password: formData.newPassword
       }, {
@@ -60,13 +65,13 @@ const ChangePassword = () => {
         confirmPassword: ''
       });
 
-      // Optionally redirect after a delay
       setTimeout(() => {
         navigate('/dashboard');
       }, 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error updating password:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to update password');
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to update password');
     } finally {
       setLoading(false);
     }
@@ -75,13 +80,13 @@ const ChangePassword = () => {
   return (
     <div className="change-password">
       <Header />
-      
+
       <div className="container">
         <h1>Change Password</h1>
-        
+
         {error && <div className="error">{error}</div>}
         {success && <div className="success">{success}</div>}
-        
+
         <form onSubmit={handleSubmit} className="password-form">
           <div className="form-group">
             <label htmlFor="oldPassword">Current Password</label>
@@ -96,7 +101,7 @@ const ChangePassword = () => {
               placeholder="Enter your current password"
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="newPassword">New Password</label>
             <input
@@ -106,12 +111,12 @@ const ChangePassword = () => {
               value={formData.newPassword}
               onChange={handleChange}
               required
-              minLength="6"
+              minLength={6}
               disabled={loading}
               placeholder="Enter your new password (min 6 characters)"
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm New Password</label>
             <input
@@ -125,17 +130,17 @@ const ChangePassword = () => {
               placeholder="Confirm your new password"
             />
           </div>
-          
+
           <div className="form-actions">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn btn-primary"
               disabled={loading}
             >
               {loading ? 'Updating Password...' : 'Update Password'}
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="btn btn-outline"
               onClick={() => navigate('/dashboard')}
               disabled={loading}

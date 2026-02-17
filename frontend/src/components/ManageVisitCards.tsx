@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import axios from 'axios';
+import type { VisitCard, User } from '../types';
+
+interface VisitCardWithUser extends VisitCard {
+  user?: User;
+}
 
 const ManageVisitCards = () => {
-  const [visitCards, setVisitCards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [visitCards, setVisitCards] = useState<VisitCardWithUser[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   useEffect(() => {
     const fetchVisitCards = async () => {
@@ -23,9 +28,10 @@ const ManageVisitCards = () => {
 
         setVisitCards(response.data.visit_cards);
         setError('');
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching visit cards:', err);
-        setError(err.response?.data?.error || err.message || 'Failed to load visit cards');
+        const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to load visit cards');
       } finally {
         setLoading(false);
       }
@@ -34,12 +40,11 @@ const ManageVisitCards = () => {
     fetchVisitCards();
   }, []);
 
-  // Filter visit cards based on search term
   const filteredVisitCards = visitCards.filter(card =>
     card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     card.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    card.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    card.user?.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+    card.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    card.user?.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -87,31 +92,32 @@ const ManageVisitCards = () => {
                   <h3>{card.title}</h3>
                   <span className="card-id">ID: {card.id}</span>
                 </div>
-                
+
                 <div className="visit-card-user">
                   <p><strong>Owner:</strong> {card.user?.name || card.user?.email}</p>
                   <p><strong>Company:</strong> {card.user?.company_name}</p>
                 </div>
-                
+
                 <div className="visit-card-description">
                   <p>{card.description.substring(0, 150)}{card.description.length > 150 ? '...' : ''}</p>
                 </div>
-                
+
                 <div className="visit-card-stats">
                   <p><strong>Views:</strong> {card.view_count}</p>
                   <p><strong>Bot Interactions:</strong> {card.bot_view_count}</p>
                 </div>
-                
+
                 <div className="visit-card-actions">
-                  <Link 
-                    to={`/company/${card.id}`} 
+                  <Link
+                    to={`/company/${card.id}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="btn btn-outline btn-small"
                   >
                     View Public
                   </Link>
-                  <Link 
-                    to={`/admin/visit-cards/${card.id}/edit`} 
+                  <Link
+                    to={`/admin/visit-cards/${card.id}/edit`}
                     className="btn btn-primary btn-small"
                     style={{ marginLeft: '5px' }}
                   >

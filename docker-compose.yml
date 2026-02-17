@@ -80,7 +80,7 @@ services:
     container_name: visit_platform_frontend
     restart: always
     ports:
-      - "3000:80"
+      - "5173:80"
     depends_on:
       - api
     networks:

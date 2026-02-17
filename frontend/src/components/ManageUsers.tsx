@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import axios from 'axios';
+import type { User } from '../types';
 
 const ManageUsers = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -23,9 +24,10 @@ const ManageUsers = () => {
 
         setUsers(response.data.users);
         setError('');
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching users:', err);
-        setError(err.response?.data?.error || err.message || 'Failed to load users');
+        const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to load users');
       } finally {
         setLoading(false);
       }
@@ -34,7 +36,7 @@ const ManageUsers = () => {
     fetchUsers();
   }, []);
 
-  const handleDeleteUser = async (userId) => {
+  const handleDeleteUser = async (userId: number) => {
     if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       return;
     }
@@ -49,15 +51,14 @@ const ManageUsers = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Remove the deleted user from the state
       setUsers(users.filter(user => user.id !== userId));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error deleting user:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to delete user');
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to delete user');
     }
   };
 
-  // Filter users based on search term
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -127,13 +128,13 @@ const ManageUsers = () => {
                       </span>
                     </td>
                     <td>
-                      <Link 
-                        to={`/admin/users/${user.id}/edit`} 
+                      <Link
+                        to={`/admin/users/${user.id}/edit`}
                         className="btn btn-outline btn-small"
                       >
                         Edit
                       </Link>
-                      <button 
+                      <button
                         onClick={() => handleDeleteUser(user.id)}
                         className="btn btn-danger btn-small"
                         style={{ marginLeft: '5px' }}
@@ -145,7 +146,7 @@ const ManageUsers = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No users found.</td>
+                  <td colSpan={6}>No users found.</td>
                 </tr>
               )}
             </tbody>

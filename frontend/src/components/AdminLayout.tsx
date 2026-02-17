@@ -1,10 +1,14 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-const AdminLayout = ({ children }) => {
+interface AdminLayoutProps {
+  children: ReactNode;
+}
+
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const location = useLocation();
 
-  const isActive = (path) => {
+  const isActive = (path: string) => {
     return location.pathname === path;
   };
 
@@ -16,32 +20,32 @@ const AdminLayout = ({ children }) => {
         </div>
         <ul>
           <li>
-            <Link 
-              to="/admin/dashboard" 
+            <Link
+              to="/admin/dashboard"
               className={isActive('/admin/dashboard') ? 'active' : ''}
             >
               Dashboard
             </Link>
           </li>
           <li>
-            <Link 
-              to="/admin/users" 
+            <Link
+              to="/admin/users"
               className={isActive('/admin/users') ? 'active' : ''}
             >
               Manage Users
             </Link>
           </li>
           <li>
-            <Link 
-              to="/admin/visit-cards" 
+            <Link
+              to="/admin/visit-cards"
               className={isActive('/admin/visit-cards') ? 'active' : ''}
             >
               Manage Visit Cards
             </Link>
           </li>
           <li>
-            <Link 
-              to="/admin/statistics" 
+            <Link
+              to="/admin/statistics"
               className={isActive('/admin/statistics') ? 'active' : ''}
             >
               Statistics

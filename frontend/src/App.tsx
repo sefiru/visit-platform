@@ -1,10 +1,8 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/Home';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
-import VisitCardPage from './components/VisitCardPage';
 import VisitCardDetail from './components/VisitCardDetail';
 import CreateVisitCard from './components/CreateVisitCard';
 import EditVisitCard from './components/EditVisitCard';
@@ -29,7 +27,7 @@ function App() {
           <Route path="/v/:domain" element={<VisitCardDetail />} />
           <Route path="/create-visit-card" element={<CreateVisitCard />} />
           <Route path="/edit-visit-card/:id" element={<EditVisitCard />} />
-          
+
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<ManageUsers />} />

@@ -23,7 +23,7 @@ start "Visit Platform Bot" cmd /k "cd /d %~dp0bot && go run main.go"
 
 REM Start the frontend in a new window
 echo Starting Frontend...
-start "Visit Platform Frontend" cmd /k "cd /d %~dp0frontend && set PORT=3000 && npm start"
+start "Visit Platform Frontend" cmd /k "cd /d %~dp0frontend && set PORT=5173 && npm run dev"
 
 echo.
 echo All services started!

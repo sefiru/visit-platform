@@ -1,20 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import axios from 'axios';
 
+interface UserData {
+  name: string;
+  email: string;
+  company_name: string;
+  role: 'user' | 'admin';
+}
+
 const EditUser = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [userData, setUserData] = useState({
+  const [userData, setUserData] = useState<UserData>({
     name: '',
     email: '',
     company_name: '',
     role: 'user'
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -35,9 +42,10 @@ const EditUser = () => {
           role: response.data.user.role || 'user'
         });
         setError('');
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching user:', err);
-        setError(err.response?.data?.error || err.message || 'Failed to load user');
+        const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to load user');
       } finally {
         setLoading(false);
       }
@@ -46,7 +54,7 @@ const EditUser = () => {
     fetchUser();
   }, [id]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setUserData(prev => ({
       ...prev,
@@ -54,9 +62,9 @@ const EditUser = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -68,13 +76,13 @@ const EditUser = () => {
       });
 
       setSuccess('User updated successfully!');
-      // Redirect after a short delay
       setTimeout(() => {
         navigate('/admin/users');
       }, 1500);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error updating user:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to update user');
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      setError(axiosErr.response?.data?.error || axiosErr.message || 'Failed to update user');
     }
   };
 
@@ -93,10 +101,10 @@ const EditUser = () => {
     <AdminLayout>
       <div className="edit-user">
         <h1>Edit User</h1>
-        
+
         {error && <div className="error">Error: {error}</div>}
         {success && <div className="success">{success}</div>}
-        
+
         <form onSubmit={handleSubmit} className="user-form">
           <div className="form-group">
             <label htmlFor="name">Name</label>
@@ -109,7 +117,7 @@ const EditUser = () => {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -121,7 +129,7 @@ const EditUser = () => {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="company_name">Company Name</label>
             <input
@@ -132,7 +140,7 @@ const EditUser = () => {
               onChange={handleChange}
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="role">Role</label>
             <select
@@ -146,7 +154,7 @@ const EditUser = () => {
               <option value="admin">Admin</option>
             </select>
           </div>
-          
+
           <div className="form-actions">
             <button type="submit" className="btn btn-primary">
               Update User

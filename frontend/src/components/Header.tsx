@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
-const Header = ({ showAuthButtons = true }) => {
+interface HeaderProps {
+  showAuthButtons?: boolean;
+}
+
+const Header = ({ showAuthButtons = true }: HeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [userRole, setUserRole] = useState('');
+  const [userRole, setUserRole] = useState<string>('');
 
   useEffect(() => {
-    // Get user role from token or localStorage when component mounts
     const token = localStorage.getItem('token');
     if (token) {
-      // Decode JWT token to get role
       try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -22,7 +24,6 @@ const Header = ({ showAuthButtons = true }) => {
         setUserRole(decodedToken.role || '');
       } catch (error) {
         console.error('Error decoding token:', error);
-        // Fallback: try to get role from localStorage if available
         const storedRole = localStorage.getItem('role');
         if (storedRole) {
           setUserRole(storedRole);
@@ -33,13 +34,12 @@ const Header = ({ showAuthButtons = true }) => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('role'); // Remove role from localStorage
+    localStorage.removeItem('role');
     setUserRole('');
     navigate('/');
   };
 
   const isAuthenticated = !!localStorage.getItem('token');
-
   const isHomePage = location.pathname === '/';
 
   return (
