@@ -1,12 +1,16 @@
 package handlers
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"api/db"
 	"api/models"
+	"api/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -456,4 +460,162 @@ func (h *VisitCardHandler) GetAllVisitCardStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"all_stats": allStats})
+}
+
+// UploadLogo handles logo upload to MinIO
+func (h *VisitCardHandler) UploadLogo(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	userID, _ := c.Get("userID")
+
+	// Get the visit card
+	var visitCard models.VisitCard
+	if err := db.DB.First(&visitCard, uint(id)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Visit card not found"})
+		return
+	}
+
+	// Check ownership
+	if visitCard.UserID != userID.(uint) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to upload logo for this visit card"})
+		return
+	}
+
+	// Get uploaded file
+	file, header, err := c.Request.FormFile("logo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get uploaded file"})
+		return
+	}
+	defer file.Close()
+
+	// Validate file type
+	contentType := header.Header.Get("Content-Type")
+	allowedTypes := map[string]bool{
+		"image/png":   true,
+		"image/jpeg":  true,
+		"image/jpg":   true,
+		"image/gif":   true,
+		"image/webp":  true,
+		"image/svg+xml": true,
+	}
+	if !allowedTypes[contentType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Allowed: PNG, JPEG, GIF, WEBP, SVG"})
+		return
+	}
+
+	// Validate file size (max 5MB)
+	if header.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File size exceeds 5MB limit"})
+		return
+	}
+
+	// Read file content
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		return
+	}
+
+	// Delete old logo if exists
+	if visitCard.LogoURL != "" {
+		ctx := context.Background()
+		utils.DeleteLogo(ctx, visitCard.LogoURL)
+	}
+
+	// Upload to MinIO
+	ctx := context.Background()
+	objectName, err := utils.UploadLogo(ctx, uint(id), strings.NewReader(string(fileContent)), header.Size, contentType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload logo: " + err.Error()})
+		return
+	}
+
+	// Update database with new logo path
+	visitCard.LogoURL = objectName
+	if err := db.DB.Save(&visitCard).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save logo path: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Logo uploaded successfully",
+		"logo_url": objectName,
+	})
+}
+
+// DeleteLogo handles logo deletion from MinIO
+func (h *VisitCardHandler) DeleteLogo(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	userID, _ := c.Get("userID")
+
+	// Get the visit card
+	var visitCard models.VisitCard
+	if err := db.DB.First(&visitCard, uint(id)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Visit card not found"})
+		return
+	}
+
+	// Check ownership
+	if visitCard.UserID != userID.(uint) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete logo for this visit card"})
+		return
+	}
+
+	// Delete from MinIO if logo exists
+	if visitCard.LogoURL != "" {
+		ctx := context.Background()
+		if err := utils.DeleteLogo(ctx, visitCard.LogoURL); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete logo: " + err.Error()})
+			return
+		}
+	}
+
+	// Clear logo path in database
+	visitCard.LogoURL = ""
+	if err := db.DB.Save(&visitCard).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear logo path: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logo deleted successfully"})
+}
+
+// ServeImage serves images from MinIO (proxy)
+func (h *VisitCardHandler) ServeImage(c *gin.Context) {
+	filepath := c.Param("filepath")
+	
+	// Remove leading slash
+	filepath = strings.TrimPrefix(filepath, "/")
+	
+	if filepath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image path required"})
+		return
+	}
+
+	// Get image from MinIO
+	ctx := context.Background()
+	obj, err := utils.GetLogo(ctx, filepath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found: " + err.Error()})
+		return
+	}
+	defer obj.Close()
+
+	// Get object info
+	stat, err := obj.Stat()
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Failed to get image info: " + err.Error()})
+		return
+	}
+
+	// Set content type
+	c.Header("Content-Type", stat.ContentType)
+	c.Header("Content-Length", strconv.FormatInt(stat.Size, 10))
+	c.Header("Cache-Control", "public, max-age=31536000") // Cache for 1 year
+
+	// Stream the file
+	if _, err := io.Copy(c.Writer, obj); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stream image"})
+		return
+	}
 }

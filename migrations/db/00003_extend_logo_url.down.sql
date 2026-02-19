@@ -1,0 +1,1 @@
+-- No down migration needed (VARCHAR(500) is backward compatible with VARCHAR(255))

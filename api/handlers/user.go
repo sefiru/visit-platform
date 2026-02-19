@@ -262,9 +262,15 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
-	
+
 	id, _ := strconv.Atoi(c.Param("id"))
-	
+
+	// Protect user ID 1 - cannot be modified or deleted
+	if id == 1 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot modify the primary admin user"})
+		return
+	}
+
 	var req UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -279,7 +285,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	user.Name = req.Name
 	user.CompanyName = req.CompanyName
-	
+
 	// Update role if provided and user is admin
 	if req.Role != "" {
 		if req.Role == "admin" {
@@ -303,9 +309,15 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
-	
+
 	id, _ := strconv.Atoi(c.Param("id"))
-	
+
+	// Protect user ID 1 - cannot be modified or deleted
+	if id == 1 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete the primary admin user"})
+		return
+	}
+
 	result := db.DB.Delete(&models.User{}, uint(id))
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})

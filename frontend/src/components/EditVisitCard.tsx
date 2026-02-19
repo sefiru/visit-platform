@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from './Header';
 import axios from 'axios';
 import MarkdownPreview from './MarkdownPreview';
 import './MarkdownEditor.css';
+import './LogoUpload.css';
 
 interface FormData {
   title: string;
   description: string;
-  logo_url: string;
   domain: string;
   telegram_bot_token: string;
 }
@@ -21,7 +21,6 @@ const EditVisitCard = () => {
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
-    logo_url: '',
     domain: '',
     telegram_bot_token: ''
   });
@@ -29,6 +28,11 @@ const EditVisitCard = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [activeTab, setActiveTab] = useState<EditorTab>('edit');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const [uploadingLogo, setUploadingLogo] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchVisitCard = async () => {
@@ -45,13 +49,19 @@ const EditVisitCard = () => {
           }
         });
 
+        const card = response.data.visit_card;
         setFormData({
-          title: response.data.visit_card.title,
-          description: response.data.visit_card.description,
-          logo_url: response.data.visit_card.logo_url,
-          domain: response.data.visit_card.domain,
-          telegram_bot_token: response.data.visit_card.telegram_bot_token
+          title: card.title,
+          description: card.description,
+          domain: card.domain,
+          telegram_bot_token: card.telegram_bot_token
         });
+
+        // If there's an existing logo URL, fetch and display it
+        if (card.logo_url) {
+          setLogoPreview(`/api/images/${card.logo_url}`);
+        }
+
         setError('');
       } catch (err: unknown) {
         console.error('Error fetching visit card:', err);
@@ -71,6 +81,97 @@ const EditVisitCard = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Invalid file type. Please upload PNG, JPEG, GIF, WEBP, or SVG.');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size exceeds 5MB limit.');
+      return;
+    }
+
+    setLogoFile(file);
+    setError('');
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    try {
+      setUploadingLogo(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      await axios.delete(`/api/visit-cards/${id}/logo`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      setLogoFile(null);
+      setLogoPreview('');
+      setFormData(prev => ({ ...prev, logo_url: '' }));
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+      setSuccess('Logo removed successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: unknown) {
+      console.error('Error removing logo:', err);
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      setError(axiosErr.response?.data?.error || 'Failed to remove logo');
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const validateBotToken = (token: string): boolean => {
@@ -96,12 +197,26 @@ const EditVisitCard = () => {
         throw new Error('Authentication token not found');
       }
 
+      // Update visit card details
       await axios.put(`/api/visit-cards/${id}`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
+
+      // If logo file is selected, upload it
+      if (logoFile) {
+        const formDataLogo = new FormData();
+        formDataLogo.append('logo', logoFile);
+
+        await axios.put(`/api/visit-cards/${id}/logo`, formDataLogo, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      }
 
       setSuccess('Visit card updated successfully!');
       setTimeout(() => {
@@ -154,6 +269,49 @@ const EditVisitCard = () => {
           </div>
 
           <div className="form-group">
+            <label>Logo</label>
+            <div className="logo-upload-container">
+              {logoPreview ? (
+                <div className="logo-preview-wrapper">
+                  <img src={logoPreview} alt="Logo preview" className="logo-preview" />
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-small remove-logo-btn"
+                    onClick={handleRemoveLogo}
+                    disabled={uploadingLogo || loading}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div 
+                  className={`logo-upload-area ${isDragging ? 'drag-active' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    id="logo-upload"
+                    accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                    onChange={handleLogoChange}
+                    disabled={loading}
+                    className="logo-input"
+                  />
+                  <label htmlFor="logo-upload" className="logo-upload-label">
+                    <span className="upload-icon">📁</span>
+                    <span>Click to upload or drag and drop</span>
+                    <span className="upload-hint">PNG, JPEG, GIF, WEBP, SVG (max 5MB)</span>
+                  </label>
+                </div>
+              )}
+            </div>
+            <small className="form-help">Upload a company logo (optional)</small>
+          </div>
+
+          <div className="form-group">
             <label>Description (Markdown supported)</label>
             <div className="markdown-editor">
               <div className="markdown-editor-tabs">
@@ -201,19 +359,6 @@ Visit our [website](https://example.com) for more info."
             <small className="form-help">
               Format your description using <a href="https://www.markdownguide.org/cheat-sheet/" target="_blank" rel="noopener noreferrer">Markdown</a> syntax
             </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="logo_url">Logo URL</label>
-            <input
-              type="text"
-              id="logo_url"
-              name="logo_url"
-              value={formData.logo_url}
-              onChange={handleChange}
-              disabled={loading}
-              placeholder="https://example.com/logo.png"
-            />
           </div>
 
           <div className="form-group">

@@ -9,6 +9,7 @@ import (
 	"api/db"
 	"api/handlers"
 	"api/middleware"
+	"api/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,12 @@ func main() {
 
 	// Initialize database
 	db.InitDB()
+
+	// Initialize MinIO
+	if err := utils.InitMinIO(); err != nil {
+		log.Fatalf("Failed to initialize MinIO: %v", err)
+	}
+	log.Println("MinIO initialized successfully")
 
 	// Setup router
 	r := gin.Default()
@@ -47,6 +54,9 @@ func main() {
 		public.GET("/visit-cards/public", (&handlers.VisitCardHandler{}).GetAllPublicVisitCards)
 		public.POST("/visit-cards/:id/increment-bot-view", (&handlers.VisitCardHandler{}).IncrementBotView)
 		public.GET("/v/:domain", (&handlers.VisitCardHandler{}).GetPublicVisitCardByDomain)
+
+		// Image proxy route (public, for serving logos)
+		public.GET("/images/*filepath", (&handlers.VisitCardHandler{}).ServeImage)
 	}
 
 	// Protected routes
@@ -66,6 +76,10 @@ func main() {
 		protected.PUT("/visit-cards/:id", (&handlers.VisitCardHandler{}).UpdateVisitCard)
 		protected.DELETE("/visit-cards/:id", (&handlers.VisitCardHandler{}).DeleteVisitCard)
 		protected.GET("/visit-cards/:id/stats", (&handlers.VisitCardHandler{}).GetVisitCardStats)
+
+		// Logo routes
+		protected.PUT("/visit-cards/:id/logo", (&handlers.VisitCardHandler{}).UploadLogo)
+		protected.DELETE("/visit-cards/:id/logo", (&handlers.VisitCardHandler{}).DeleteLogo)
 	}
 
 	// Admin routes

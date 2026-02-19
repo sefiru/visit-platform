@@ -76,7 +76,17 @@ const VisitCardDetail = () => {
             <h1>{visitCard?.title}</h1>
             {visitCard?.logo_url && (
               <div className="company-logo">
-                <img src={visitCard.logo_url} alt={`${visitCard.title} logo`} />
+                <img 
+                  src={`/api/images/${visitCard.logo_url}`} 
+                  alt={`${visitCard.title} logo`}
+                  onError={(e) => {
+                    // Fallback to direct URL if proxy fails
+                    const target = e.target as HTMLImageElement;
+                    if (visitCard.logo_url?.startsWith('http')) {
+                      target.src = visitCard.logo_url;
+                    }
+                  }}
+                />
               </div>
             )}
           </header>
